@@ -1,0 +1,689 @@
+---
+title: "gtsummary: tutorial"
+format:
+  html: 
+    toc: true
+---
+
+We will use the gtsummary built-in `trial` dataset:
+
+```{r warning=FALSE, message=FALSE}
+library(gtsummary)
+library(dplyr)
+library(stringr)
+library(purrr)
+
+head(trial)
+```
+
+# tbl_summary()
+
+Let's perform the most simple default approach. By default it will detect the variable type and present the corresponding statistic to the given type: 
+
+- Statistics are median (IQR) for continuous, n (%) for categorical/dichotomous
+
+- Variables coded `0/1`, `TRUE/FALSE`. `Yes/No` will be detected as dichotomous
+
+- NA values will be shown as "Unknown"
+
+- digits will be selected in function of the spread of the data
+
+```{r}
+trial %>% 
+  select(age, grade, response) %>% 
+  tbl_summary()
+```
+
+Let's customize the table a bit:
+
+- We can indicate the variables using the `c()` function, `tidyselect()` functions (`starts_with()`, `ends_with()`, `contains()`) or `gtsummary()` built functions (`all_continuous()`, `all_categorical()`, `all_dichotomous()`).
+
+- For the statistic we can use any R function that is loaded into the environment, even functions that we can create. 
+
+```{r}
+trial %>% 
+  select(-trt) %>% 
+  tbl_summary(
+    label = age ~ "Patient Age",
+    type = c(age, marker) ~ "continuous",
+    digits = starts_with("age") ~ 0,
+    statistic = all_continuous() ~ "{mean} ({sd})"
+  )
+```
+
+If we have more than one indication we would have to use lists:
+
+```{r}
+trial %>% 
+  select(-trt) %>% 
+  tbl_summary(
+    label = list(age ~ "Patient Age",
+                 marker ~ "Marker Level"
+                 )
+  )
+```
+
+`tbl_summary` objects can also be updated using related functions:
+
+- `add_*()` add additional columns to the table (p-values, q-values, overall statistics, ...)
+
+- `modify_*()` to modify elements of the table (headers, spanning headers, footnotes, ...)
+
+- `bold_*()/italicize_*()` to style some elements of the table (labels, variable levels, significant p-values, ...)
+
+In general, if we want to know what the gtsummary functions that give statistics are doing exactly we can see it clearly in the code of the function.
+
+`add_p()` adds p-values from any kind of specified test, while `add_q()` gives an adjusted p-value:
+
+```{r}
+trial %>% 
+  select(trt, age, grade, response) %>% 
+  tbl_summary(
+    by = trt
+  ) %>% 
+  add_p() %>% 
+  add_q(method = "bonferroni")
+```
+
+`add_difference()` presents the statistic of the difference between groups along with the CI and p-value of the comparison:
+
+```{r}
+trial %>% 
+  select(trt, marker, response) %>% 
+  tbl_summary(
+    by = trt,
+    statistic = list(marker ~ "{mean} ({sd})",
+                     response ~ "{p}%"
+                     ),
+    missing = "no"
+  ) %>% 
+  add_difference()
+```
+
+All available tests for `add_p()` and `add_difference()` can be found in [https://www.danieldsjoberg.com/gtsummary/reference/tests.html](https://www.danieldsjoberg.com/gtsummary/reference/tests.html).
+
+`add_overall()` adds a column with the overall statistic, `add_n()` adds a column with the sample size and `add_stat_label()` removes the footnote that tells which statistic is using and puts it in the row:
+
+```{r}
+trial %>% 
+  select(trt, age, grade, response) %>% 
+  tbl_summary(
+    by = trt,
+    missing = "no"
+  ) %>% 
+  add_overall() %>% 
+  add_n() %>% 
+  add_stat_label()
+```
+
+`add_stat()` allows to add a column with any desired customized statistic that we want:
+
+```{r}
+# fn returns t-test test statistic and pvalue
+my_ttest2 <- function(data, variable, by, ...) {
+  t.test(data[[variable]] ~ as.factor(data[[by]])) %>%
+    broom::tidy() %>%
+    mutate(
+      stat = str_glue("t={style_sigfig(statistic)}, {style_pvalue(p.value, prepend_p = TRUE)}")
+    ) %>%
+    pull(stat)
+}
+
+trial %>%
+  select(trt, age, marker) %>%
+  tbl_summary(by = trt, missing = "no") %>%
+  add_stat(fns = everything() ~ my_ttest2) %>%
+  modify_header(add_stat_1 ~ "**Treatment Comparison**")
+```
+
+`bold_labels()` bold the variable labels, `italicize_levels()` italicize the variable levels and `bold_p()` bolds p-values according to a specified treshold:
+
+```{r}
+trial %>% 
+  select(trt, age, grade, response) %>% 
+  tbl_summary(by = trt) %>% 
+  add_p() %>% 
+  bold_labels() %>% 
+  italicize_levels() %>% 
+  bold_p(t = 0.8)
+```
+
+`modify_header()` changes the labels of the columns in the table, `modify_spanning_header()` allows to create and name a spanning header and `modify_footnote()` allows to modify or create any footnote we want:
+
+```{r}
+table <- trial %>% 
+  select(age, response, trt) %>% 
+  tbl_summary(
+    by = trt, 
+    missing = "no"
+  )
+
+table %>% 
+  modify_header(
+    label ~ "",
+    stat_1 ~ "**A**",
+    stat_2 ~ "**B**"
+  ) %>% 
+  modify_spanning_header(
+    all_stat_cols() ~ "**Drug**"
+  ) %>% 
+  modify_footnote(
+    all_stat_cols() ~ "median (IQR) for continuous; n (%) for categorical"
+  )
+```
+
+To see the internal header names available for the table we can use `show_header_names()`:
+
+```{r}
+show_header_names(table)
+```
+
+`tbl_cross()` is a wrapper for $n \times m$ tables:
+
+```{r}
+
+trial %>% 
+  tbl_cross(
+    row = trt,
+    col = grade,
+    percent = "row",
+    margin = "row"
+  ) %>% 
+  add_p(source_note = TRUE)
+
+```
+
+`tbl_continuous()` summarizes a continuous variable by 1, 2, or more categorical variables:
+
+```{r}
+trial %>% 
+  select(age, trt, grade) %>% 
+  tbl_continuous(
+    variable = age,
+    by = trt,
+    include = grade
+  )
+```
+
+`tbl_survfit()` is a wrapper for tables with survival objects. We can pass a `survfit` object:
+
+```{r}
+library(survival)
+
+fit <- survfit(Surv(ttdeath, death) ~ trt, trial)
+
+tbl_survfit(
+  fit, 
+  times = c(12, 24),
+  label_header = "**{time} Month**"
+) %>% 
+  add_p()
+```
+
+We can also pass the data itself and specify the formula. To report the median survival times we have to specify it with `probs=` instead of `times=`:
+
+```{r}
+tbl_survfit(
+  trial,
+  y = Surv(ttdeath, death),
+  include = c(trt, grade),
+  probs = 0.5,
+  label_header = "**Median Survival**"
+)
+```
+
+# tbl_regression()
+
+Let's fit the following logistic model:
+
+```{r}
+mod <- glm(response ~ age + stage, data = trial, family = binomial(link = "logit"))
+```
+
+By default it creates a basic summary table of the estimated coefficient model:
+
+```{r}
+tbl_regression(
+  mod
+)
+```
+
+Lets customize the output. We can add global p-values for categorical variables with `add_global_p()` and we can add the AIC and other summary statistics of the model with `add_glance_table()`:
+
+```{r}
+tbl_regression(
+  mod,
+  exponentiate = TRUE
+) %>% 
+  add_global_p() %>% 
+  add_glance_table(
+    include = c(nobs, logLik, AIC, BIC)
+  )
+```
+
+Many different model types are supported, because it uses the `broom::tidy()` function, but even if the model is not supported we can define a custom tidier using the `tidy_fun=` argument. The only necessary arguments for this custom function are the model to input and some parameters that we have to pass in tbl_regression (exponentiate, conf.int, conf.level) with an output with the same structure as the one from `broom::tidy()`:
+
+```{r message=FALSE}
+library(sandwich)
+library(lmtest)
+
+tidy_robust_sandwich <- function(x,
+                        exponentiate = TRUE,
+                        conf.level = 0.95,
+                        conf.int = TRUE) {
+  
+  coef <- coeftest(x, vcov = sandwich) 
+
+  broom::tidy(x, exponentiate = exponentiate, conf.int = conf.int, conf.level = conf.level) %>% 
+    mutate(
+      estimate = coef[,"Estimate"],
+      std.error = coef[,"Std. Error"],
+      p.value = coef[,"Pr(>|z|)"],
+      conf.low = exp(estimate + qnorm(1 - 0.05 / 2) * std.error),
+      conf.high = exp(estimate + qnorm(0.05 / 2) * std.error) 
+    ) %>% 
+    dplyr::select(term, estimate, std.error, conf.low, conf.high, p.value)
+  
+}
+
+tbl_regression(
+  mod, 
+  tidy_fun = tidy_robust_sandwich
+)
+```
+
+
+Additionally, there are some already built-in custom tidiers: `tidy_standardize()` (standardized coefficients), `tidy_bootstrap()` (bootstrapped coefficients), `tidy_robust()` (robust SE, CI and p-values), `pool_and_tidy_mice()` (deals with models from multiply imputed data using the mice package)
+
+```{r}
+tbl_regression(mod, 
+               exponentiate = TRUE,
+               tidy_fun = tidy_robust)
+```
+
+Recall that the given coefficients are different from the ones using the `sandwich` package.
+
+```{r}
+tbl_regression(mod, 
+               tidy_fun = tidy_standardize)
+```
+
+The standardized coefficients represent the change in units of standard deviations of $Y$ per standard deviation of the corresponding $X_i$. This measure is useful for assessing variable importance.
+
+```{r}
+mice::mice(trial, m = 2) %>%
+  with(lm(age ~ marker + grade)) %>%
+  tbl_regression()
+```
+
+For univariate models, we can use the `tbl_uvregression()` function. In the argument `method.args=` we can specify a list with all the arguments necessary for doing the model: 
+
+```{r}
+table_uvreg <- trial %>% 
+  select(trt, age, response) %>% 
+  tbl_uvregression(
+    method = glm,
+    y = response,
+    method.args = list(family = binomial),
+    exponentiate = TRUE
+  )
+
+table_uvreg
+```
+
+The same functions defined before for `tbl_summary()` can be applied to a `tbl_regression` object.
+
+# inline_text()
+
+The `inline_text()` is a very useful function to report the results of any gtsummary table. For example, if we want to get the odds ratio for age of the last previous model, we can use:
+
+```{r}
+inline_text(table_uvreg, variable = age)
+```
+
+We can customize the reporting pattern:
+
+```{r}
+inline_text(table_uvreg, variable = age, pattern = "{estimate} (95%CI: {ci})")
+```
+
+In case of a `tbl_summary` object we can select the column and/or level using:
+
+```{r}
+table1 <- trial %>%
+  select(trt, grade) %>%
+  tbl_summary(by = trt) %>%
+  add_p()
+
+inline_text(table1, variable = grade, level = "I", column = "Drug A", pattern = "{n}/{N} ({p})%")
+```
+
+# tbl_merge()/tbl_stack()/tbl_strata()
+
+`tbl_merge()` allows to build side-by-side tables. For example, let's join the results of a univariate regression model with the results of a multivariate one in the same table:
+
+```{r}
+table_uvsurv <- trial %>% 
+  select(age, grade, death, ttdeath) %>% 
+  tbl_uvregression(
+    method = coxph, 
+    y = Surv(ttdeath, death),
+    exponentiate = TRUE
+  ) %>% 
+  add_global_p()
+
+
+table_mvsurv <- coxph(
+  Surv(ttdeath, death) ~ age + grade,
+  data = trial
+) %>% 
+  tbl_regression(
+    exponentiate = TRUE
+  ) %>% 
+  add_global_p()
+
+tbl_merge(
+  list(table_uvsurv, table_mvsurv),
+  tab_spanner = c("**Univariable**", "**Multivariable**")
+)
+```
+
+`tbl_stack()` is used to combine tables vertically:
+
+```{r}
+table_uvsurv <- coxph(Surv(ttdeath, death) ~ trt, data = trial) %>% 
+  tbl_regression(
+    show_single_row = trt, #Dichotomic variables can be showed in one row only
+    label = trt ~ "Drug B vs A",
+    exponentiate = TRUE
+  )
+
+table_mvsurv <- coxph(Surv(ttdeath, death) ~ trt + grade + stage + marker, data = trial) %>% 
+  tbl_regression(
+    show_single_row = trt,
+    label = trt ~ "Drug B vs A",
+    exponentiate = TRUE,
+    include = "trt" #To report only the results for one of the covariates
+  )
+
+tbl_stack(
+  list(table_uvsurv, table_mvsurv),
+  group_header = c("Unadjusted", "Adjusted")
+)
+```
+
+`tbl_strata()` builds tables stratified for some grouping variable:
+
+```{r}
+trial %>% 
+  select(age, response, grade, trt) %>% 
+  mutate(
+    grade = paste("Grade", grade)
+  ) %>% 
+  tbl_strata(
+    strata = grade,
+    ~tbl_summary(.x, by = trt, missing = "no") %>% 
+      modify_header(all_stat_cols() ~ "**{level}**")
+  )
+```
+
+# themes
+
+- A theme is a set of customization preferences that can be easily set and reused.
+
+- Themes control default settings for existing functions
+
+- Themes control more fine-grained customization not available via arguments or helper functions
+
+- Easily use one of the available themes, or create your own
+
+Propose: we can create a BRUI-IGTP theme giving the default characteristics that we want to use in all our tables.
+
+Let's see a variety of different available themes for inspiration:
+
+```{r}
+reset_gtsummary_theme()
+
+tbl_regression(mod, exponentiate = TRUE) %>% 
+  modify_caption("Default theme")
+
+reset_gtsummary_theme()
+
+theme_gtsummary_journal(journal = "jama")
+
+tbl_regression(mod, exponentiate = TRUE) %>% 
+  modify_caption("Journal Theme (JAMA)")
+
+reset_gtsummary_theme()
+
+theme_gtsummary_compact()
+
+tbl_regression(mod, exponentiate = TRUE) %>% 
+  modify_caption("Compact theme")
+```
+
+We can also change the language of the statistics that are used with `theme_gtsummary_language()`:
+
+```{r}
+reset_gtsummary_theme()
+
+theme_gtsummary_language(language = "es")
+
+tbl_regression(mod, exponentiate = TRUE) %>% 
+  modify_caption("Language Theme (Spanish)")
+```
+
+To create a customized theme:
+
+```{r}
+my_theme <-
+  list(
+    # round large p-values to two places
+    "pkgwide-fn:pvalue_fun" = function(x) style_pvalue(x, digits = 2),
+    "pkgwide-fn:prependpvalue_fun" = function(x) style_pvalue(x, digits = 2, prepend_p = TRUE),
+    # substitute "," by "-" when displaying CIs
+    "pkgwide-str:ci.sep" = "-",
+    # report median (IQR) and n (percent) as default stats in `tbl_summary()`
+    "tbl_summary-str:continuous_stat" = "{median} ({p25} - {p75})",
+    "tbl_summary-str:categorical_stat" = "{n} ({p})",
+    #some gt customization
+    "as_gt-lst:addl_cmds" = list(
+      #make the font size small
+      tab_spanner = rlang::expr(gt::tab_options(table.font.size = 'small')),
+      #stripe the table rows
+      user_added1 = rlang::expr(gt::opt_row_striping()),
+      user_added2 = rlang::expr(gt::opt_table_lines("none"))
+    )
+  )
+
+reset_gtsummary_theme()
+
+set_gtsummary_theme(my_theme)
+
+trial %>% 
+  select(age, grade, response) %>% 
+  tbl_summary()
+
+m1 <- lm(age ~ grade, data = trial)
+
+tbl_regression(m1)
+```
+
+See [https://www.danieldsjoberg.com/gtsummary/articles/themes.html](https://www.danieldsjoberg.com/gtsummary/articles/themes.html) for more information on the elements that can be customized.
+
+Our theme proposal:
+
+```{r}
+theme_brui <-
+  list(
+    # round large p-values to three places
+    "pkgwide-fn:pvalue_fun" = function(x) style_pvalue(x, digits = 3),
+    "pkgwide-fn:prependpvalue_fun" = function(x) style_pvalue(x, digits = 3, prepend_p = TRUE),
+    # report median (IQR) and n (percent) as default stats in `tbl_summary()`
+    "tbl_summary-str:continuous_stat" = "{median} ({p25} - {p75})",
+    "tbl_summary-str:categorical_stat" = "{n} ({p}%)",
+    #Big mark as ','
+    "style_number-arg:big.mark" = ",",
+    #Stripe rows
+    "as_gt-lst:addl_cmds" = list(
+      tab_spanner = rlang::expr(gt::opt_row_striping())
+    ),
+    #Add N column, remove 'Characteristics' label, add label to row, and substitute the 0 (NA%) for '-'
+    "tbl_summary-fn:addnl-fn-to-run" = function(x) {
+      #If we add it, it would be difficult to remove it later. (we can always add it with this command)
+      x <- add_n(x)
+      x$table_body <- x$table_body %>% 
+        relocate(n, .after = last_col())
+      x %>% 
+        #Remove 'Characteristic' label and put the population number in another line (discuss second point)
+        modify_header(
+          label = "",
+          all_stat_cols() ~ "**{level}**<br>N = {n}"
+        ) %>% 
+        # #If we put this line, we can't not apply it again (f.ex. if we want to change some label of the statistic). It's better without these labels in the rows.
+        # add_stat_label() %>%
+        # We substitute "0 (NA%)" for "-" (any other idea?)
+        modify_table_body(~.x %>% mutate(across(all_stat_cols(), ~case_match(., "0 (NA%)" ~ "-", .default = .)))) %>%
+        #Add bold labels (discuss... We can't undo it later. We will keep it as we don't add the stat label in the rows)
+        bold_labels()
+    },
+    #Don't show missings because we have added the N column
+    "tbl_summary-arg:missing" = "no",
+    #Round digits for continuous and categorical to two whenever it's not an integer
+    "tbl_summary-arg:digits" = list(
+      all_continuous() ~ 2,
+      all_categorical() ~ c(0, 2)
+    )
+  )
+```
+
+
+```{r}
+reset_gtsummary_theme()
+set_gtsummary_theme(theme_brui)
+
+#To change to spanish language
+# theme_gtsummary_language(language = "es")
+
+trial %>% 
+  tbl_summary(
+    by = trt
+  ) %>% 
+  add_p()
+```
+
+# Automatic table labelling
+
+Let's see the workflow for creating a statistical report with tables automatically labelled. Labels have to be set as attributes of the dataframe for gtsummary to read them automatically.
+
+First, in the MakingData: 
+
+1. Read the data
+
+```{r}
+data <- readxl::read_excel(file.path("Data", "data.xlsx"))
+```
+
+2. Save the actual names and transform them with `clean_names()`
+
+```{r}
+labels <- names(data)
+
+data <- data %>% 
+  janitor::clean_names()
+
+names(labels) <- names(data)
+labels
+```
+
+3. Do the preprocessing and write a data dictionary to _excel_ with all the variables and the previous label that we had in the vector labels
+
+```{r}
+data <- data %>% 
+  mutate(
+    trt_a = case_when(
+      trt == "Drug A" ~ 1,
+      TRUE ~ 0
+    ),
+    trt_b = case_when(
+      trt == "Drug B" ~ 1,
+      TRUE ~ 0
+    )
+  ) %>% 
+  mutate_at(c("trt_a", "trt_b"), ~factor(.x, levels = 0:1, labels = c("No", "Yes")))
+
+dictionary <- tibble(
+  var = names(data)
+) %>% 
+  mutate(
+    lab = map_chr(var, ~labels[.x])
+  )
+
+dictionary
+
+# (Save it one first time)
+# openxlsx::write.xlsx(dictionary, file = "Data/dictionary.xlsx")
+```
+
+4. Check the labels in excel and customize them if necessary. Then, read it again and add them as labels of the dataframe
+
+```{r}
+#Read it again
+dictionary <- readxl::read_excel(file.path("Data", "dictionary.xlsx"))
+
+dictionary
+
+#Put it to named vector
+dict_labels <- dictionary %>%
+  tibble::deframe() %>%
+  as.list()
+
+#Put them as labels using the package labelled
+data <- data %>%
+  labelled::set_variable_labels(.labels = dict_labels, .strict = FALSE)
+
+str(data)
+
+#Finally save the dataframe for the analysis
+save(data, file = file.path("Data", "data.Rda"))
+```
+
+Finally, in the Analysis:
+
+5. Load the data and use gtsummary (we can use the previous defined theme):
+
+```{r}
+load(file = file.path("Data", "data.Rda"))
+
+reset_gtsummary_theme()
+set_gtsummary_theme(theme_brui)
+
+data %>% 
+  tbl_summary(
+    by = trt
+  ) %>% 
+  add_p()
+```
+
+# gtreg
+
+`gtreg` is a package that uses `gtsummary` to build tables for reporting adverse events to regulatory agencies. We will use the `gtreg` built-in dataset `df_adverse_events`:
+
+```{r}
+library(gtreg)
+
+head(df_adverse_events)
+
+df_adverse_events %>% 
+  gtreg::tbl_ae(
+    id_df = gtreg::df_patient_characteristics,
+    id = patient_id,
+    ae = adverse_event,
+    soc = system_organ_class, 
+    by = grade, 
+    strata = trt
+  ) %>% 
+  modify_header(gtreg::all_ae_cols() ~ "**Grade {by}**") %>%  
+  bold_labels()
+```
+
