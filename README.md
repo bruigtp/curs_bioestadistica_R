@@ -1,8 +1,11 @@
+## Materials
 
-# curs_bioestadistica_R
+Updated 11th March 2025. It contains only materials belonging to the first session.
 
-<!-- badges: start -->
-<!-- badges: end -->
-
-The goal of curs_bioestadistica_R is to ...
+  - `slides/`: it contains the slides presented in class.
+   
+  - `code/`: It contains the R code found in the slides.
+   
+  - `exercices/`: It contains the exercices together with the solutions.
+ 
 
