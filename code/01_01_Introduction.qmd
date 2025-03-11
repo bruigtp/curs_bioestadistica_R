@@ -1,0 +1,317 @@
+---
+title: "Session I: Introduction"
+subtitle: "Applied Biostatistics Course with R"
+author: "Biostatistics Support and Research Unit, IGTP"
+format: 
+  html:
+    embed-resources: true
+    toc: true
+execute: 
+  echo: true
+editor_options: 
+  chunk_output_type: console
+---
+
+## Load and install required packages
+
+```{r}
+# install.packages("dplyr")
+library(dplyr)
+```
+
+## Assign a value to an object
+  
+```{r}
+#Assign the value 5 to the object x
+x <- 5
+#Show the value assigned to x
+x
+```
+  
+## Single value object
+
+```{r}
+#Assign a numeric value
+x <- 5
+#Show value
+x
+#Show object class
+class(x)
+#Check if object class is numeric
+is.numeric(x)
+
+x <- "bananas" 
+x 
+class(x)
+is.character(x)
+
+x <- TRUE 
+x
+class(x)
+is.logical(x)
+
+x <- Sys.Date()
+x
+class(x)
+```
+
+## Vector
+
+```{r}
+#Numeric vector
+x <- c(1, 3, 5)
+x
+class(x)
+
+#Character vector
+c("A", "B", "C")
+
+#Logical vector
+c(TRUE, FALSE, FALSE)
+
+#Date vector
+c(Sys.Date(), Sys.Date() - 1, Sys.Date() + 1)
+```
+
+```{r}
+c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+
+1:10
+
+seq(1, 10, by = 1)
+```
+
+```{r}
+x <- c(1, 3, 5)
+
+#Get the value of the second element
+x[2]
+
+#Get the value of the first and third element
+x[c(1, 3)]
+
+#Get all but the first element
+x[-1]
+
+#Get the value equal to 3
+x[x == 3]
+
+#Get all the elements with a value greater than 2
+x[x > 2]
+```
+
+## Factor
+
+```{r}
+x <- factor(c("underweight", "underweight", "normal", "overweight", "normal"))
+x
+
+levels(x)
+
+#Set levels in the right order
+x <- factor(c("underweight", "underweight", "normal", "overweight", "normal"),     
+levels = c("underweight", "normal", "overweight"))
+x
+
+#Change labels too
+x <- factor(c("underweight", "underweight", "normal", "overweight", "normal"),     
+levels = c("underweight", "normal", "overweight"), labels = c("Underweight", "Normal", "Overweight"))
+x
+```
+
+## Matrix
+
+```{r}
+#Specify the number of rows with the arguments nrow and ncol
+x <- matrix(c(1, 2, 3, 4, 5, 6), nrow = 2, ncol = 3)
+x
+class(x)
+
+x <- matrix(c(1,2,3,4,5,6), nrow = 2, ncol = 3)
+x
+
+y <- matrix(c(6,5), nrow = 2, ncol = 1)
+y
+
+cbind(x, y)
+
+y <- matrix(c(6,5,4), nrow = 1, ncol = 3)
+y
+
+rbind(x, y)
+```
+
+## List 
+
+```{r}
+x <- list(c(1, 3, 5), "Character", factor(c("underweight", "underweight", "normal", "overweight", "normal")))
+x
+
+#Get the first object
+x[[1]]
+```
+
+## Dataframe
+
+```{r}
+x <- data.frame(outcome = c(1,0,1,1),
+                exposure = c("yes", "yes", "no", "no"),
+                age = c(24, 55, 39, 18))
+x
+class(x)
+
+x$age
+```
+
+## Useful tips
+
+```{r}
+x <- data.frame(outcome = c(1,0,1,1),
+                exposure = c("yes", "yes", "no", "no"),
+                age = c(24, 55, 39, 18))
+str(x)
+
+length(x$outcome)
+```
+
+```{r}
+#Missing value in a single object
+x <- NA
+is.na(x)
+
+#Missing value in a numeric vector
+x <- c(1, NA, 5)
+is.na(x)
+
+#Missing value in a dataframe
+x <- data.frame(outcome = c(1,NA,1,1),
+                exposure = c("yes", "yes", NA, "no"),
+                age = c(NA, 55, 39, 18))
+is.na(x$outcome)
+is.na(x$exposure)
+is.na(x$age)
+```
+
+## Basic numeric operations
+
+```{r}
+#Sum a number to a numeric single object
+x <- 1
+x + 3
+
+#Sum a number to a numeric vector
+x <- c(0, 2, 4)
+x + 1
+
+#Divide by a number a numeric vector
+x <- c(0, 2, 4)
+x/2
+
+#Sum up two different vectors
+x <- c(0, 2, 4)
+y <- c(1, 2, 3)
+x + y
+
+#Substract a number to a numeric column of a dataframe
+x <- data.frame(outcome = c(1,0,1,1),
+                exposure = c("yes", "yes", "no", "no"),
+                age = c(24, 55, 39, 18))
+x$age - 18
+```
+
+## Basic logical operators
+
+```{r}
+#Check if the value is non-missing and lower than 30
+x <- 10
+!is.na(x) & x < 30
+
+#Check if the values in a vector are lower than 20 or equal to 40
+x <- c(10, 15, 20, 30, 40)
+x < 20 | x == 40
+
+#Check if the value is 30 and either lower than 20 or equal to 40
+x <- c(10, 15, 20, 30, 40)
+x == 30 & x < 20 | x == 40
+
+#Check if the value is 30 and either lower than 20 or equal to 40
+x <- c(10, 15, 20, 30, 40)
+x == 30 & x < 20 | x == 40
+
+#Check if the value is 30 and either lower than 20 or equal to 40
+x <- c(10, 15, 20, 30, 40)
+x == 30 & (x < 20 | x == 40)
+
+x[x == 30 & x < 20 | x == 40]
+```
+
+## Pipe operator
+
+```{r}
+#Round π to 6 decimals
+round(pi, 6)
+
+#Equivalent using pipes
+pi |> round(6)
+
+#Exponential of the square root of π and then round to 6 decimals
+round(exp(sqrt(pi)), 6)
+
+#Equivalent using pipes
+pi |> sqrt() |> exp() |> round(6)
+```
+
+## Tibbles
+
+```{r}
+#A dataframe
+iris
+
+#A tibble
+iris_tbl <- tibble::as_tibble(iris)
+iris_tbl
+```
+
+## The tidyverse
+
+```{r}
+#Worflow with base R
+
+filter_iris <- subset(iris, Species == "setosa")
+
+sel_filter_iris <- filter_iris[, c("Sepal.Length", "Sepal.Width")]
+
+sel_filter_iris$Sepal.Size <- ifelse(sel_filter_iris$Sepal.Length > mean(sel_filter_iris$Sepal.Length) & sel_filter_iris$Sepal.Width > mean(sel_filter_iris$Sepal.Width), 2, 1)
+
+sel_filter_iris$Sepal.Size <- factor(sel_filter_iris$Sepal.Size, levels = 1:2, labels = c("Small", "Big"))
+
+small_iris <- sel_filter_iris[sel_filter_iris$Sepal.Size == "Small",]
+
+small_sepal_area <- mean(small_iris[,"Sepal.Length"] * small_iris[,"Sepal.Width"])
+
+big_iris <- sel_filter_iris[sel_filter_iris$Sepal.Size == "Big",]
+
+big_sepal_area <- mean(big_iris[,"Sepal.Length"] * big_iris[,"Sepal.Width"])
+
+data.frame(
+  "Sepal.Size" = c("Small", "Big"),
+  "Sepal.Area" = c(small_sepal_area, big_sepal_area)
+)
+
+#Same workflow with the tidyverse
+
+iris |> 
+  filter(Species == "setosa") |> 
+  select(Sepal.Length, Sepal.Width) |> 
+  mutate(
+    Sepal.Size = case_when(
+      Sepal.Length > mean(Sepal.Length) & Sepal.Width > mean(Sepal.Width) ~ 2,
+      .default = 1
+    ),
+    Sepal.Size = factor(Sepal.Size, levels = 1:2, labels = c("Small", "Big")) 
+  ) |> 
+  group_by(Sepal.Size) |> 
+  summarise(
+    Sepal.Area = mean(Sepal.Length*Sepal.Width)
+  )
+```
