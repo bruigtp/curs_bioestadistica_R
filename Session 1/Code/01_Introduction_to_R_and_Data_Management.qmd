@@ -1,0 +1,788 @@
+---
+title: "Session I: Introduction"
+subtitle: "Applied Biostatistics Course with R"
+author: "Biostatistics Support and Research Unit, IGTP"
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    code-overflow: wrap
+execute: 
+  echo: true
+editor_options: 
+  chunk_output_type: console
+---
+
+# Preparation
+
+Load and install required packages:
+
+```{r}
+# install.packages(c("dplyr", "tidyr", "gtsummary", "readxl", "haven"))
+library(dplyr)
+library(tidyr)
+library(gtsummary)
+library(readxl)
+library(haven)
+```
+  
+# R objects  
+
+## Single value object
+
+Numeric:
+
+```{r}
+#Assign a numeric value
+x <- 5
+#Show value
+x
+#Show object class
+class(x)
+#Check if object class is numeric
+is.numeric(x)
+```
+
+Character:
+
+```{r}
+x <- "bananas" 
+x 
+class(x)
+is.character(x)
+```
+
+Logical:
+
+```{r}
+x <- TRUE 
+x
+class(x)
+is.logical(x)
+```
+
+Date:
+
+```{r}
+x <- Sys.Date()
+x
+class(x)
+```
+
+## Vector
+
+```{r}
+#Numeric vector
+x <- c(1, 3, 5)
+x
+class(x)
+```
+
+To see the length of a vector:
+
+```{r}
+length(x)
+```
+
+Other types of vector:
+
+```{r}
+#Character vector
+c("A", "B", "C")
+
+#Logical vector
+c(TRUE, FALSE, FALSE)
+
+#Date vector
+c(Sys.Date(), Sys.Date() - 1, Sys.Date() + 1)
+```
+
+Alternative way to create numeric vectors:
+
+```{r}
+c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+
+1:10
+
+seq(1, 10, by = 1)
+```
+
+Access the value of any element in a vector:
+
+```{r}
+x <- c(1, 3, 5)
+
+#Get the value of the second element
+x[2]
+
+#Get the value of the first and third element
+x[c(1, 3)]
+
+#Get all but the first element
+x[-1]
+```
+
+## Factor
+
+```{r}
+x <- factor(c("underweight", "underweight", "normal", "overweight", "normal"))
+x
+
+levels(x)
+
+#Set levels in the right order
+x <- factor(c("underweight", "underweight", "normal", "overweight", "normal"),     
+levels = c("underweight", "normal", "overweight"))
+x
+
+#Change labels too
+x <- factor(c("underweight", "underweight", "normal", "overweight", "normal"),     
+levels = c("underweight", "normal", "overweight"), labels = c("Underweight", "Normal", "Overweight"))
+x
+```
+
+## List 
+
+```{r}
+x <- list(c(1, 3, 5), "Character", factor(c("underweight", "underweight", "normal", "overweight", "normal")))
+x
+
+#Get the first object
+x[[1]]
+```
+
+## Dataframe
+
+```{r}
+x <- data.frame(outcome = c(1,0,1,1),
+                exposure = c("yes", "yes", "no", "no"),
+                age = c(24, 55, 39, 18))
+x
+class(x)
+```
+
+Access a column (variable) in a dataset:
+
+```{r}
+x$age
+```
+
+View a dataframe:
+
+```{r}
+#| eval: false
+
+View(x)
+```
+
+## Useful tips
+
+Check the structure of an object:
+
+```{r}
+x <- data.frame(outcome = c(1,0,1,1),
+                exposure = c("yes", "yes", "no", "no"),
+                age = c(24, 55, 39, 18))
+str(x)
+```
+
+Calculate the frequency of the categories of a character vector:
+
+```{r}
+table(x$exposure)
+```
+
+Missing values:
+
+```{r}
+#Missing value in a single object
+x <- NA
+is.na(x)
+
+#Missing value in a numeric vector
+x <- c(1, NA, 5)
+is.na(x)
+
+#Missing value in a dataframe
+x <- data.frame(outcome = c(1,NA,1,1),
+                exposure = c("yes", "yes", NA, "no"),
+                age = c(NA, 55, 39, 18))
+
+is.na(x$outcome)
+is.na(x$exposure)
+is.na(x$age)
+
+table(is.na(x$outcome))
+```
+
+# Numerical and logical operations
+
+## Basic numerical operations
+
+```{r}
+#Sum a number to a numeric single object
+x <- 1
+x + 3
+
+#Sum a number to a numeric vector
+x <- c(0, 2, 4)
+x + 1
+
+#Divide by a number a numeric vector
+x <- c(0, 2, 4)
+x/2
+
+#Sum up two different vectors
+x <- c(0, 2, 4)
+y <- c(1, 2, 3)
+x + y
+
+#Substract a number to a numeric column of a dataframe
+x <- data.frame(outcome = c(1,0,1,1),
+                exposure = c("yes", "yes", "no", "no"),
+                age = c(24, 55, 39, 18))
+x$age - 18
+```
+
+## Basic logical operators
+
+```{r}
+#Check if the value is non-missing and lower than 30
+x <- 10
+!is.na(x) & x < 30
+
+#Check if the values in a vector are lower than 20 or equal to 40
+x <- c(10, 15, 20, 30, 40)
+x < 20 | x == 40
+
+#Check if the value is lower than 20 and also greater than 10 or lower than 100
+x <- c(10, 15, 20, 30, 40)
+x < 20 & x > 10 | x < 100
+
+#Check if the value is lower than 20 and also greater than 10 or lower than 100
+x <- c(10, 15, 20, 30, 40)
+x < 20 & (x > 10 | x < 100)
+
+#Check which element is different from bananas
+x <- c("bananas", "apples", "oranges")
+x != "bananas"
+x %in% c("apples", "oranges")
+```
+
+Use logical operators to access a vector element:
+
+```{r}
+x
+x[x != "bananas"]
+```
+
+# R functions and packages
+
+## R functions
+
+To see how a function works:
+
+```{r}
+#| eval: false
+?median
+```
+
+To install and load any package from CRAN:
+
+```{r}
+#| eval: false
+
+#Install the package called 'dplyr'
+install.packages("dplyr")
+#Load it
+library(dplyr)
+```
+
+# The tidyverse
+
+## Pipe operator
+
+```{r}
+#Round π to 6 decimals
+round(pi, 6)
+
+#Equivalent using pipes
+pi |> round(6)
+
+#Exponential of the square root of π and then round to 6 decimals
+round(exp(sqrt(pi)), 6)
+
+#Equivalent using pipes
+pi |> 
+  sqrt() |> 
+  exp() |> 
+  round(6)
+```
+
+## Tibbles 
+
+A dataframe:
+
+```{r}
+#| eval: false
+
+iris
+```
+
+A tibble:
+
+```{r}
+iris_tbl <- tibble::as_tibble(iris)
+
+iris_tbl
+```
+
+This is an example of what a tidyverse workflow looks like compared to base R:
+
+```{r}
+#Base R
+
+filter_iris <- subset(iris, Species == "setosa")
+
+sel_filter_iris <- filter_iris[, c("Sepal.Length", "Sepal.Width")]
+
+sel_filter_iris$Sepal.Size <- ifelse(sel_filter_iris$Sepal.Length > mean(sel_filter_iris$Sepal.Length) & sel_filter_iris$Sepal.Width > mean(sel_filter_iris$Sepal.Width), 2, 1)
+
+sel_filter_iris$Sepal.Size <- factor(sel_filter_iris$Sepal.Size, levels = 1:2, labels = c("Small", "Big"))
+
+small_iris <- sel_filter_iris[sel_filter_iris$Sepal.Size == "Small",]
+
+small_sepal_area <- mean(small_iris[,"Sepal.Length"] * small_iris[,"Sepal.Width"])
+
+big_iris <- sel_filter_iris[sel_filter_iris$Sepal.Size == "Big",]
+
+big_sepal_area <- mean(big_iris[,"Sepal.Length"] * big_iris[,"Sepal.Width"])
+
+data.frame(
+  "Sepal.Size" = c("Small", "Big"),
+  "Sepal.Area" = c(small_sepal_area, big_sepal_area)
+)
+
+#Tidyverse
+library(dplyr)
+
+iris |> 
+  filter(Species == "setosa") |> 
+  select(Sepal.Length, Sepal.Width) |> 
+  mutate(
+    Sepal.Size = case_when(
+      Sepal.Length > mean(Sepal.Length) & Sepal.Width > mean(Sepal.Width) ~ 2,
+      .default = 1
+    ),
+    Sepal.Size = factor(Sepal.Size, levels = 1:2, labels = c("Small", "Big")) 
+  ) |> 
+  group_by(Sepal.Size) |> 
+  summarise(
+    Sepal.Area = mean(Sepal.Length*Sepal.Width)
+  )
+```
+
+# Reading data
+
+## Text Files
+
+```{r}
+#| eval: false
+
+my_data <- read.table("file.txt")
+```
+
+## CSV Files
+
+```{r}
+#| eval: false
+
+my_data <- read.csv("file.csv")
+```
+
+## Excel Files
+
+```{r}
+#| eval: false
+
+library(readxl)
+my_data <- read_excel("file.xlsx")
+```
+
+## SPSS Files
+
+```{r}
+#| eval: false
+
+library(haven)
+my_data <- read_sav("file.sav")
+```
+
+## STATA Files
+
+```{r}
+#| eval: false
+
+library(haven)
+my_data <- read_dta("file.dta")
+```
+
+## Example
+
+```{r}
+#| eval: false
+
+library(readxl)
+my_data <- read_excel("C:\\Users\\X\\Downloads\\dataset_example.xlsx")
+
+View(my_data)
+```
+
+## Creating one
+
+```{r}
+df <- data.frame(
+  "id" = 1:4,
+  "fruit" = as.character(c("apple", "banana", "banana", "orange")), 
+  "size" = c(1.2, 4.5, 5.6, 3.4), 
+  "colour" = factor(c("red", "yellow", "yellow", "orange"))
+)
+```
+
+## Basic elements
+
+```{r}
+nrow(df)
+```
+
+```{r}
+ncol(df)
+```
+
+```{r}
+names(df)
+```
+
+## Details
+
+```{r}
+str(df)
+```
+
+```{r}
+head(df, 3)
+```
+
+```{r}
+tail(df, 2)
+```
+
+## Column access
+
+```{r}
+df$id
+```
+
+```{r}
+df[["id"]]
+```
+
+```{r}
+df[, "id"]
+```
+
+## Row access
+
+```{r}
+df[1, ]
+```
+
+
+## Cell access
+
+```{r}
+df$fruit[4]
+```
+
+```{r}
+df[4, "fruit"]
+```
+
+```{r}
+df[4, 2]
+```
+
+# Data management
+
+## Installation
+
+```{r}
+# install.packages("dplyr")
+library(dplyr)
+```
+
+## Example dataset
+
+```{r}
+library(gtsummary)
+trial
+
+head(trial)
+```
+
+## Select columns
+  
+```{r}
+trial |> 
+  select(1:4)
+```
+  
+```{r}
+trial2 <- trial |> 
+  select(1:4)
+```
+  
+```{r}
+trial2 |> 
+  select(trt, age)
+```
+  
+```{r}
+trial2 |> 
+  select(-trt)
+```
+
+```{r}
+trial2 |> 
+  select(trt:marker)
+```
+
+```{r}
+trial2 |> 
+  select(-(trt:marker))
+```
+  
+```{r}
+trial2 |> 
+  select(starts_with("m"))
+```
+  
+```{r}
+trial2 |> 
+  select(ends_with("ge"))
+```
+  
+```{r}
+trial2 |> 
+  select(trt, starts_with("a"), ends_with("ge"))
+```
+
+## Change column names
+
+```{r}
+trial2 |> 
+  rename("Treatment" = "trt")
+```
+
+```{r}
+trial2 |> 
+  rename("Treatment" = "trt", "Age" = "age", "Marker (ng/mL)" = "marker")
+```
+
+## Change columns positions
+
+```{r}
+trial2 |> 
+  relocate(stage)
+```
+
+```{r}
+trial2 |> 
+  relocate(stage, .before = age)
+```
+  
+```{r}
+trial2 |> 
+  relocate(stage, .after = age)
+```
+
+```{r}
+trial2 |> 
+  relocate(marker, stage, .after = trt)
+```
+
+## Access specific columns
+
+```{r}
+#| eval: false
+
+trial2 |> 
+  pull("trt")
+
+trial2 |> 
+  pull(1)
+```
+
+## Create/modify columns
+
+```{r}
+trial2 |> 
+  mutate(visit = 1)
+```
+
+```{r}
+trial2 |> 
+  mutate(marker2 = marker * 100)
+```
+  
+```{r}
+trial2 |> 
+  mutate(visit = 1, marker2 = marker * 100)
+```
+  
+```{r}
+trial2 |> 
+  mutate(trt = tolower(trt))
+```
+
+## Create/modify columns (Tip)
+
+```{r}
+trial2 |> 
+  mutate(trt_num = case_when(
+    trt == "Drug A" ~ 1, 
+    .default = 0
+  ))
+```
+
+## Filter by specific rows
+  
+```{r}
+trial2 |> 
+  filter(age > 18)
+```
+  
+```{r}
+trial2 |> 
+  filter(age > 18 & stage == "T1")
+```
+
+```{r}
+trial2 |> 
+  filter(age > 18 | stage == "T2")
+```
+
+## Sort the dataset
+  
+```{r}
+trial2 |> 
+  arrange(age)
+```
+  
+```{r}
+trial2 |> 
+  arrange(-age)
+```
+
+## Compute summary statistics
+  
+```{r}
+trial2 |> 
+  summarise(age_min = min(age))
+```
+  
+```{r}
+trial2 |> 
+  summarise(age_min = min(age, na.rm = T))
+```
+  
+```{r}
+trial2 |> 
+  summarise(age_min = min(age, na.rm = T), 
+            age_max = max(age, na.rm = T))
+```
+
+## Group rows
+
+```{r}
+trial2 |> 
+  group_by(stage)
+```
+
+```{r}
+trial2 |> 
+  group_by(trt) |> 
+  summarise(marker_mean = mean(marker, na.rm = T))
+```
+  
+```{r}
+trial2 |> 
+  group_by(trt) |> 
+  mutate(marker_mean = mean(marker, na.rm = T))
+```
+  
+```{r}
+trial2 |> 
+  group_by(trt) |> 
+  mutate(marker_mean = mean(marker, na.rm = T)) |> 
+  ungroup()
+```
+
+# Joining data
+
+## Joining datasets
+
+```{r}
+head(band_members)
+```
+
+```{r}
+head(band_instruments)
+```
+
+## Left join
+
+```{r}
+band_members |> 
+  left_join(band_instruments)
+```
+
+```{r}
+band_members |> 
+  left_join(band_instruments, by = "name")
+```
+
+# Data pivoting
+
+## Wide to long format dataset
+  
+```{r}
+trial2_wide <- trial2 |> 
+  mutate("id" = 1:nrow(trial2),
+         "marker_post" = marker + 1) |> 
+  rename("marker_pre" = "marker") |> 
+  relocate(id) |> 
+  relocate(stage, .before = marker_pre)
+
+trial2_wide |> 
+  pivot_longer(
+    cols = starts_with("marker_"), 
+    names_to = "time", 
+    values_to = "marker"
+  )
+```
+
+## Long to wide format dataset
+
+```{r}
+trial2_long <- trial2 |> 
+  mutate(id = 1:nrow(trial2)) |> 
+  relocate(id)
+
+trial2_long |> 
+  pivot_wider(
+    names_from = "trt", 
+    values_from = "marker"
+  )
+```
+
