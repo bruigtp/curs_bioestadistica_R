@@ -1,0 +1,624 @@
+---
+title: "Description and between-group comparisons"
+author: "Biostatistics Support and Research Unit"
+institute: 
+  - "Germans Trias i Pujol Research Institute and Hospital (IGTP)<br> Badalona, Spain"
+date: "2025-03-26"
+date-format: long
+format: 
+  revealjs:
+    theme: [blood, WWW/custom.scss]
+    embed-resources: true
+    code-line-numbers: false
+    code-copy: true
+    footer: "Applied Biostatistics Course with R"
+    slide-number: true
+    logo: WWW/logo.png
+execute: 
+  echo: true
+editor_options: 
+  chunk_output_type: console
+comments:
+  hypothesis: true
+---
+
+# Introduction
+
+## trial dataset
+
+```{r}
+#| eval: false
+
+library(gtsummary)
+trial
+```
+
+# Descriptive tables
+
+## Categorical variables
+
+Univariate: 
+
+```{r echo=FALSE}
+library(gtsummary)
+
+trial |> 
+  tbl_summary(
+    include = c("trt", "stage", "grade")
+  ) |> 
+  add_stat_label() |> 
+  modify_header(label = "") |> 
+  as_gt() |> 
+  gt::tab_options(table.font.size = 14) |> 
+  gt::opt_row_striping(row_striping = TRUE)
+```
+
+Bivariate: 
+
+```{r echo=FALSE}
+library(gtsummary)
+
+trial |> 
+  tbl_summary(
+    include = c("stage", "grade"),
+    by = "trt"
+  ) |> 
+  add_stat_label() |> 
+  modify_header(label = "") |> 
+  as_gt() |> 
+  gt::tab_options(table.font.size = 14) |> 
+  gt::opt_row_striping(row_striping = TRUE)
+```
+
+## Numerical variables
+
+```{r}
+trial$age
+```
+
+Mean:
+
+```{r}
+mean(trial$age, na.rm = TRUE)
+```
+
+Median:
+
+```{r}
+median(trial$age, na.rm = TRUE)
+```
+
+Mode:
+
+```{r}
+#install.packages("DescTools")
+library(DescTools)
+Mode(trial$age, na.rm = TRUE)
+```
+
+Standard Deviation: 
+
+```{r}
+sd(trial$age, na.rm = TRUE)
+```
+
+Range: 
+
+```{r}
+range(trial$age, na.rm = TRUE)
+```
+
+Percentiles:
+
+```{r}
+#Summary of percentiles
+quantile(trial$age, na.rm = TRUE)
+
+#To calculate a given percentile (90th)
+quantile(trial$age, p = 0.9, na.rm = TRUE)
+```
+
+Interquartile range:
+
+```{r}
+#To calculate a given percentile (90th)
+quantile(trial$age, p = 0.75, na.rm = TRUE) - quantile(trial$age, p = 0.25, na.rm = TRUE)
+```
+
+Summary statistics:
+  
+```{r}
+summary(trial$age)
+```
+
+# gtsummary
+
+## tbl_summary()
+
+```{r}
+library(gtsummary)
+trial |> 
+  tbl_summary(include = c("age", "marker", "grade", "response"))
+```
+
+## Customize the table
+
+```{r}
+trial |> 
+  tbl_summary(
+    include = c("age", "marker", "grade", "response")
+  )
+```
+
+```{r}
+trial |> 
+  tbl_summary(
+    include = c("age", "marker", "grade", "response"),
+    by = trt
+  )
+```
+
+```{r}
+trial |> 
+  tbl_summary(
+    include = c("age", "marker", "grade", "response"),
+    by = trt,
+    missing = "no"
+  )
+```
+
+```{r}
+trial |> 
+  tbl_summary(
+    include = c("age", "marker", "grade", "response"),
+    by = trt,
+    missing = "no",
+    percent = "row"
+  )
+```
+
+```{r}
+trial |> 
+  tbl_summary(
+    include = c("age", "marker", "grade", "response"),
+    by = trt,
+    missing = "no",
+    percent = "row",
+    label = age ~ "Patient Age"
+  )
+```
+
+```{r}
+trial |> 
+  tbl_summary(
+    include = c("age", "marker", "grade", "response"),
+    by = trt,
+    missing = "no",
+    percent = "row",
+    label = age ~ "Patient Age",
+    statistic = age ~ "{mean} ({sd})"
+  )
+```
+
+```{r}
+trial |> 
+  tbl_summary(
+    include = c("age", "marker", "grade", "response"),
+    by = trt,
+    missing = "no",
+    percent = "row",
+    label = age ~ "Patient Age",
+    statistic = age ~ "{mean} ({sd})",
+    type = response ~ "categorical"
+  )
+```
+
+# ggplot2
+
+## Bar plot
+
+Univariate:
+
+```{r}
+library(ggplot2)
+
+#Define data and mapping:
+ggplot(data = trial, aes(x = stage)) +
+  #Create bar plot layer:
+  geom_bar(fill = "grey", color = "black", width = .8) +
+  #Change x scale:
+  scale_x_discrete(name = "T Stage") +
+  #Change y scale:
+  scale_y_continuous(name = "Counts", limits = c(0, 60), breaks = seq(0, 60, by = 10)) +
+  #Apply a black & white theme:
+  theme_bw()
+```
+
+Bivariate (stacked):
+
+```{r}
+#Define data and mapping:
+ggplot(data = trial, aes(x = stage, fill = trt)) +
+  #Create bar plot layer:
+  geom_bar(color = "black", width = .8) +
+  #Change x scale:
+  scale_x_discrete(name = "T Stage") +
+  #Change y scale:
+  scale_y_continuous(name = "Counts", limits = c(0, 60), breaks = seq(0, 60, by = 10)) +
+  #Change fill legend:
+  scale_fill_discrete(name = "Treatment") +
+  #Apply a black & white theme:
+  theme_bw()
+```
+
+Bivariate (position dodge):
+
+```{r}
+#Define data and mapping:
+ggplot(data = trial, aes(x = stage, fill = trt)) +
+  #Create bar plot layer:
+  geom_bar(color = "black", width = .8, position = position_dodge()) +
+  #Change x scale:
+  scale_x_discrete(name = "T Stage") +
+  #Change y scale:
+  scale_y_continuous(name = "Counts", limits = c(0, 30), breaks = seq(0, 30, by = 5)) +
+  #Change fill legend:
+  scale_fill_discrete(name = "Treatment") +
+  #Apply a black & white theme:
+  theme_bw()
+```
+
+Bivariate (percentages):
+
+```{r}
+#Define data and mapping:
+ggplot(data = trial, aes(x = stage, fill = trt)) +
+  #Create bar plot layer:
+  geom_bar(color = "black", width = .8, position = "fill") +
+  #Change x scale:
+  scale_x_discrete(name = "T Stage") +
+  #Change y scale:
+  scale_y_continuous(name = "Percentage", labels = scales::percent) +
+  #Change fill legend:
+  scale_fill_discrete(name = "Treatment") +
+  #Apply a black & white theme:
+  theme_bw()
+```
+
+## Histogram plot 
+
+Univariate:
+
+```{r}
+#Define data and mapping:
+ggplot(data = trial, aes(x = age)) +
+  #Create histogram plot layer:
+  geom_histogram(binwidth = 5, fill = "grey", color = "black") +
+  #Change x scale:
+  scale_x_continuous(name = "Age") +
+  #Change y scale:
+  scale_y_continuous(name = "Counts") +
+  #Apply a black & white theme:
+  theme_bw()
+```
+
+Bivariate:
+
+```{r}
+#Define data and mapping:
+ggplot(data = trial, aes(x = age, fill = trt)) +
+  #Create histogram plot layer:
+  geom_histogram(binwidth = 5, color = "black") +
+  #Change x scale:
+  scale_x_continuous(name = "Age") +
+  #Change y scale:
+  scale_y_continuous(name = "Counts") +
+  #Change fill legend:
+  scale_fill_discrete(name = "Treatment") +
+  #Apply a black & white theme:
+  theme_bw()
+```
+
+## Density plot 
+
+Univariate:
+
+```{r}
+#Define data and mapping:
+ggplot(data = trial, aes(x = age)) +
+  #Create histogram plot layer:
+  geom_density(alpha = .6, fill = "#68abb8") +
+  #Change x scale:
+  scale_x_continuous(name = "Age", limits = c(0, 90), breaks = c(0, 25, 50, 75)) +
+  #Change y scale:
+  scale_y_continuous(name = "Density") +
+  #Apply a black & white theme:
+  theme_bw()
+```
+
+Bivariate:
+
+```{r}
+#Define data and mapping:
+ggplot(data = trial, aes(x = age, fill = trt)) +
+  #Create histogram plot layer:
+  geom_density(alpha = .6) +
+  #Change x scale:
+  scale_x_continuous(name = "Age", limits = c(0, 90), breaks = c(0, 25, 50, 75)) +
+  #Change y scale:
+  scale_y_continuous(name = "Density") +
+  #Change fill legend:
+  scale_fill_discrete(name = "Treatment") +
+  #Apply a black & white theme:
+  theme_bw()
+```
+
+## Box plot 
+
+Univariate:
+
+```{r}
+#Define data and mapping:
+ggplot(data = trial, aes(y = age)) +
+  #Create box plot layer:
+  geom_boxplot(alpha = .6, fill = "#68abb8") +
+  #Change x scale:
+  scale_x_continuous(limits = c(-1, 1)) +
+  #Change y scale:
+  scale_y_continuous(name = "Age", limits = c(0, 90)) +
+  #Apply a black & white theme:
+  theme_bw() +
+  #Apply another theme to remove the x axis ticks and labels
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+```
+
+Bivariate:
+
+```{r}
+#Define data and mapping:
+ggplot(data = trial, aes(x = trt, y = age, fill = trt)) +
+  #Create box plot layer:
+  geom_boxplot(alpha = .6) +
+  #Change x scale:
+  scale_x_discrete(name = "Treatment") +
+  #Change y scale:
+  scale_y_continuous(name = "Age", limits = c(0, 90)) +
+  #Apply a black & white theme:
+  theme_bw() +
+  #Remove legend:
+  theme(legend.position="none")
+```
+
+# Independent Samples
+
+## Independent Samples - Continuous Data
+
+- How do you check for normality? (e.g., QQ-plots)  
+
+```{r}
+ggplot(trial, aes(sample = age)) +
+  geom_qq() +
+  geom_qq_line() +
+  labs(x = "Theoretical Quantiles", 
+       y = "Sample Quantiles") +
+  theme_bw()
+```
+
+## t-Test
+
+- **Example**: Comparing the average age between the two treatment groups.
+
+```{r}
+t.test(age ~ trt, data = trial)
+
+t.test(age ~ trt, data = trial, alternative = "less")
+
+t.test(age ~ trt, data = trial, alternative = "greater")
+```
+
+- Using `gtsummary`:
+
+```{r}
+trial |> 
+  select(age, trt) |> 
+  tbl_summary(by = trt,
+              statistic = age ~ "{mean} ({sd})") |> 
+  add_p(test = age ~ "t.test")
+```
+
+## Wilcoxon rank-sum test
+
+- **Example**: Comparing age distribution between the two treatment groups.
+
+```{r}
+wilcox.test(age ~ trt, data = trial)
+
+wilcox.test(age ~ trt, data = trial, conf.int = TRUE)
+```
+
+- Using `gtsummary`:
+
+```{r}
+trial |> 
+  select(age, marker, trt) |> 
+  tbl_summary(by = "trt") |> 
+  add_p(test = age ~ "wilcox.test")
+```
+
+## Chi-Square Test
+
+- **Example**: Testing the association between treatment group (`trt`) and cancer stage (`stage`).
+
+```{r}
+chisq.test(trial$stage, trial$trt)
+```
+
+- Using `gtsummary`:
+
+```{r}
+trial |> 
+  select(stage, trt) |> 
+  tbl_summary(by = "trt") |> 
+  add_p(test = stage ~ "chisq.test")
+```
+
+# Paired Samples
+
+## Paired t-Test
+
+- **Example:** Comparing pre-treatment and post-treatment increase in sleep hours.
+
+```{r}
+# Loading data
+data("sleep", package = "datasets")
+
+# Creating the objects pre & post intervention
+pre_interv <- sleep |> filter(group == 1) |> pull(extra)
+
+post_interv <- sleep |> filter(group == 2) |> pull(extra)
+
+# Paired t-test
+t.test(pre_interv, post_interv, paired = TRUE)
+```
+
+- Using `gtsummary`:
+
+```{r}
+sleep |> 
+  tbl_summary(by = group, 
+              include = extra) |> 
+  add_p(test = extra ~ "paired.t.test",
+        group = ID)
+```
+
+## Wilcoxon Signed-Rank Test
+
+- **Example:** Comparing pre-treatment and post-treatment increase in sleep hours.
+
+```{r}
+wilcox.test(pre_interv, post_interv, paired = TRUE)
+
+wilcox.test(pre_interv, post_interv, paired = TRUE, conf.int = TRUE)
+```
+
+- Using `gtsummary`:
+
+```{r}
+sleep |> 
+  tbl_summary(by = group, 
+              include = extra) |> 
+  add_p(test = extra ~ "paired.wilcox.test",
+        group = ID)
+```
+
+## McNemar Test
+
+- **Example:** Testing whether there is a difference in sleeping hours before and after treatment.
+
+```{r}
+# Creating a categorical version of the variable `extra`
+sleep <- sleep |> 
+  mutate(extra_cat = case_when(extra >= 0 ~ "Positive",
+                               extra < 0 ~ "Negative"),
+         extra_cat = factor(extra_cat))
+
+# Creating the objects pre & post intervention
+pre_interv_cat <- sleep |> filter(group == 1) |> pull(extra_cat)
+
+post_interv_cat <- sleep |> filter(group == 2) |> pull(extra_cat)
+
+# McNemar Test
+mcnemar.test(pre_interv_cat, post_interv_cat)
+```
+
+- Using `gtsummary`:
+
+```{r}
+sleep |> 
+  tbl_summary(by = group, 
+              include = extra_cat) |> 
+  add_p(test = extra_cat ~ "mcnemar.test",
+        group = ID)
+```
+
+# Effect size
+
+## Effect size - t-test
+
+- Using `gtsummary`:
+
+```{r}
+trial |> 
+  select(age, trt) |> 
+  tbl_summary(by = trt,
+              statistic = age ~ "{mean} ({sd})",
+              digits = age ~ c(2, 2)) |> 
+  add_difference()
+```
+
+## Effect size - Cohen's d
+
+```{r}
+#install.packages(effectsize)
+library(effectsize)
+cohens_d(age ~ trt, data = trial)
+```
+
+- Using `gtsummary`:
+
+```{r}
+trial |> 
+  select(age, trt) |> 
+  tbl_summary(by = trt,
+              statistic = age ~ "{mean} ({sd})",
+              digits = age ~ c(2, 2)) |> 
+  add_difference(test = age ~ "cohens_d")
+```
+
+
+
+## Effect size - Wilcox test
+
+- Using `gtsummary`:
+
+```{r}
+trial |> 
+  select(age, trt) |> 
+  tbl_summary(by = trt,
+              digits = all_continuous() ~ c(2, 2)) |> 
+  add_difference(test = age ~ "wilcox.test")
+```
+
+
+## Effect size - Proportions
+
+- Using `gtsummary`:
+
+```{r}
+trial |> 
+  select(response, trt) |> 
+  tbl_summary(by = trt) |> 
+  add_difference(test = response ~ "prop.test")
+```
+
+## Effect size - Relative risk
+
+- Calculating relative risks:
+
+```{r}
+# install.packages(epitools)
+library(epitools)
+
+rr <- riskratio(table(trial$trt, trial$response))
+rr$measure
+```
+
+
+## Effect size - Odds Ratio
+
+- Calculating odds ratio:
+
+```{r}
+or <- oddsratio(table(trial$trt, trial$response))
+or$measure
+```
