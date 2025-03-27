@@ -1,0 +1,668 @@
+---
+title: "ANALYSIS OF VARIANCE"
+subtitle: "Applied Biostatistics Course with R"
+author: "Biostatistics Support and Research Unit, IGTP"
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    code-overflow: wrap
+execute: 
+  echo: true
+editor_options: 
+  chunk_output_type: console
+---
+
+# Hands-on ONE-WAY ANOVA
+
+## Guinea Pigs: data
+
+The Effect of Vitamin C dose on Tooth Growth in Guinea Pigs
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+library(dplyr) # Data managment
+library(gtsummary) # Summary of results
+library(ggplot2) # Graphics
+
+data(ToothGrowth) # Data
+
+ToothGrowth <- ToothGrowth |>
+    mutate(dose=factor(dose))  # dose as factor
+
+ToothGrowth |> 
+    dplyr::select(-supp) |>
+    gtsummary::tbl_summary(
+        by=dose,
+        type = all_continuous() ~ "continuous2", 
+        statistic=all_continuous()~c("{mean} ({sd})",
+        "{median} ({p25}, {p75})"),
+        digits = all_continuous() ~ 2,
+        label = list(len = "Length (cm)"))  
+            
+# Plot
+ggplot(ToothGrowth, aes(x = dose, y =len,color=dose)) +
+  geom_point(size = 4)+
+  geom_boxplot()+
+  labs(x = "Dose", y = "Length (cm)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+```
+
+
+## Guinea Pigs: normality
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+#QQplot
+ggplot(ToothGrowth, aes(sample = len)) +
+  geom_qq() +
+  geom_qq_line() +
+  labs(title = "Q-Q Plots for Each Group", x = "Theoretical Quantiles", y = "Sample Quantiles") +
+  facet_wrap(~dose) +  
+  theme_minimal() 
+
+#Shapiro-Wilk
+ToothGrowth |>
+  group_by(dose) |>
+  summarise(p_value = shapiro.test(len)$p.value)
+
+```
+
+
+
+## Guinea Pigs: homocedasticity
+
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+# Plot
+ggplot(ToothGrowth, aes(x =dose, y = len, fill = dose)) +
+  geom_violin(alpha = 0.5) +
+  geom_jitter(width = 0.2, size = 2, alpha = 0.7) +
+  theme_minimal() +
+  labs(title = "Violin+Jittered: Variance Visualization",
+       x = "Dose",
+       y = "Length (cm)") +
+  theme(legend.position = "none")
+
+# Levene Test
+library(car)  
+leveneTest(len ~ dose, data = ToothGrowth)
+
+# Bartlett Test
+bartlett.test(len ~ dose, data = ToothGrowth)
+
+```
+
+
+## Guinea Pigs: anova
+
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+# ANOVA: dependent ~ independent
+model_anova <- aov(len ~ dose, data = ToothGrowth)  
+
+# Arrange results
+results_anova <- broom::tidy(model_anova)
+results_anova$term<-c("Between-groups","Within-groups")
+names(results_anova)<-c("Terms","df","SS","MSQ","F","P-value")
+
+# Tabulate results
+results_anova |>
+  gt::gt() |>
+  gt::fmt_number(decimals = 3) |>
+  gt::tab_header(title = "Guinea Pigs: 1-way Anova") 
+
+```
+
+
+
+## Guinea Pigs: post-hoc
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+# Tukey's Honest Significant Difference Test
+TukeyHSD(model_anova)
+
+# Bonferroni
+pairwise.t.test(ToothGrowth$len, ToothGrowth$dose, p.adjust.method = "bonferroni")
+
+
+```
+
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+# Dunnett's Test
+library(multcomp)
+summary(glht(model_anova, linfct = mcp(dose = "Dunnett"))) 
+
+```
+
+
+
+## Guinea Pigs: marginal means
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+library(emmeans) 
+
+# Estimated marginal means
+emm <- emmeans(model_anova, ~ dose)
+print(emm)
+
+# Pairwise comparisons with Tukey adjustment
+pairs(emm, adjust = "tukey")
+
+
+
+```
+
+
+## Guinea Pigs: marginal means
+
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+# Plot
+emmip(emm, ~ dose) +  
+  theme_minimal() + 
+  labs(title = "Estimated Marginal Means with CI", 
+       y = "Estimated Mean Length", 
+       x = "Dose")
+
+
+# Plot estimated marginal means with confidence intervals
+ggplot(as.data.frame(emm),  aes(x = dose, y = emmean, ymin = lower.CL, ymax = upper.CL)) +
+  # Mean points
+  geom_point(size = 4, color = "blue") +  
+  # Confidence intervals
+  geom_errorbar(width = 0.2, color = "blue") +  
+  labs(title = "Marginal Means with 95% CIs",
+      x = "Dose",
+      y = "Estimated Tooth Length") +
+  theme_minimal() 
+
+```
+
+
+## Guinea Pigs: residuals
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+# Extract Standardized residuals and fitted values
+ToothGrowth$resid <- rstandard(model_anova)  
+ToothGrowth$fitted <- fitted(model_anova)
+
+# Normality
+ggplot(ToothGrowth, aes(sample = resid)) +
+  geom_qq() +
+  geom_qq_line() +
+  labs(title = "Q-Q Plot of Residuals", 
+       x = "Theoretical Quantiles", 
+       y = "Sample Quantiles") +
+  theme_minimal() 
+
+# Residuals vs Fitted plot to check variance patterns
+ggplot(ToothGrowth, aes(x = fitted, y = resid))+
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Residuals vs Fitted Values",
+       x = "Fitted Values",
+       y = "Residuals") +
+  theme_minimal() 
+
+```
+
+
+## Guinea Pigs: Heterogeneity
+
+
+**Welch’s correction**
+
+```{r , warning=F,echo=TRUE, eval=T}
+
+library(WRS2)
+welch<-t1way(len ~ dose, data = ToothGrowth)  
+print(welch)
+
+```
+
+**White’s correction**
+
+```{r , warning=F,echo=TRUE, eval=T}
+
+library(rstatix)
+white<-anova_test(len ~ dose, data = ToothGrowth, white.adjust = TRUE)
+print(white)
+
+```
+
+
+# Hands-on TWO-WAY ANOVA
+
+## Guinea Pigs: data reloaded
+
+The Effect of Vitamin C dose and **Supplement type** on Tooth Growth in Guinea Pigs
+
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+library(dplyr) # Data managment
+library(gtsummary) # Summary of results
+library(ggplot2)# Graphics
+
+data(ToothGrowth) # data
+
+ToothGrowth <- ToothGrowth |>
+    mutate(dose=factor(dose),  # dose as factor
+           supp=factor(supp))  # supp as factor
+
+ToothGrowth |>
+  tbl_strata(
+    strata = supp,  .tbl_fun =  ~ .x |>
+        tbl_summary(by = dose, 
+        missing = "no",
+        type = all_continuous() ~ "continuous2", 
+        statistic=all_continuous()~c("{mean} ({sd})",
+        "{median} ({p25}, {p75})"),
+        digits = all_continuous() ~ 2,
+        label = list(len = "Length (cm)"))|>
+    .header = "**{strata}**, N = {n}"
+  )
+            
+
+
+```
+
+
+## Guinea Pigs: data reloaded
+
+The Effect of Vitamin C dose and **Supplement type** on Tooth Growth in Guinea Pigs
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+            
+# Plot
+ggplot(ToothGrowth, aes(x = dose, y = len, color = supp)) +
+  geom_point(size = 4, alpha = 0.3) +
+  geom_boxplot(aes(x = dose, group = interaction(dose, supp)), width = 0.4, alpha = 0.5) +
+  facet_wrap(~supp) +  # Separate plots for OJ and VC
+  labs(x = "Dose", y = "Length (cm)") +  
+  theme_minimal() 
+
+
+```
+
+
+## Guinea Pigs: normality
+
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+#QQplot
+ggplot(ToothGrowth, aes(sample = len)) +
+  geom_qq() +
+  geom_qq_line() +
+  facet_wrap(~dose*supp) +  
+  labs(title = "Q-Q Plots for Each Group", x = "Theoretical Quantiles", y = "Sample Quantiles") +
+  theme_minimal() +
+  
+```
+
+
+## Guinea Pigs: homocedasticity
+
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+# Plot
+ggplot(ToothGrowth, aes(x =dose, y = len, fill = dose)) +
+  geom_violin(alpha = 0.5) +
+  geom_jitter(width = 0.2, size = 2, alpha = 0.7) +
+  theme_minimal() +
+  facet_wrap(~supp) +
+  labs(title = "Violin+Jittered: Variance Visualization",
+       x = "Dose",
+       y = "Length (cm)") +
+  theme(legend.position = "none")
+
+# Levene Test
+library(car)  
+leveneTest(len ~ dose*supp, data = ToothGrowth)
+
+# Bartlett Test
+bartlett.test(len ~ interaction(dose, supp), data = ToothGrowth)
+
+```
+
+
+## Guinea Pigs: anova
+
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+# ANOVA: dependent ~ independent
+model_anova_2w <- aov(len ~ dose*supp, data = ToothGrowth)  
+
+# Arrange results
+results_anova_2w <- broom::tidy(model_anova_2w)
+results_anova_2w$term<-c("Between-groups: Dose","Between-groups: Supp","Interaction","Within-groups")
+names(results_anova_2w)<-c("Terms","df","SS","MSQ","F","P-value")
+
+# Tabulate results
+results_anova_2w |>
+  gt::gt() |>
+  gt::fmt_number(decimals = 3) |>
+  gt::tab_header(title = "Guinea Pigs: 2-way Anova") 
+
+```
+
+
+## Guinea Pigs: marginal means
+
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+# Estimated marginal means
+emm <- emmeans(model_anova_2w, ~ dose*supp)
+print(emm)
+
+pairs(emm, adjust = "tukey")
+
+```
+
+
+## Guinea Pigs: marginal means
+
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+# Plot estimated marginal means with confidence intervals
+
+ggplot(as.data.frame(emm), aes(x = dose, y = emmean, color = supp, group = supp)) +
+  geom_point(size = 4) +
+  geom_line() +
+  geom_errorbar(aes(ymin = emmean - SE, ymax = emmean + SE), width = 0.2) +
+  scale_x_discrete(labels = c("0.5", "1", "2")) +
+  labs(x = "Dose", y = "Estimated Marginal Mean", color = "Supplement") 
+  theme_minimal() 
+
+
+```
+
+## Guinea Pigs: residuals
+
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+# Extract residuals and fitted values
+
+ToothGrowth$resid <- rstudent(model_anova_2w)  
+ToothGrowth$fitted <- fitted(model_anova_2w)
+
+# Normality
+
+ggplot(ToothGrowth, aes(sample = resid)) +
+  geom_qq() +
+  geom_qq_line() +
+  labs(title = "Q-Q Plot of Residuals", 
+       x = "Theoretical Quantiles", 
+       y = "Sample Quantiles") +
+  theme_minimal()
+
+# Residuals vs Fitted plot to check variance patterns
+
+ggplot(ToothGrowth, aes(x = fitted, y = resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Residuals vs Fitted Values",
+       x = "Fitted Values",
+       y = "Residuals") +
+  theme_minimal() 
+
+
+```
+
+# Hands-on REPEATED MEASURES ANOVA
+
+## WeightLoss: data 
+
+Data on weight loss and self esteem over three months, for three groups of individuals: Control, Diet and Diet + Exercise.
+
+```{r , warning=F,echo=TRUE, eval=TRUE}
+library(tidyr)
+library(carData)
+library(dplyr)
+library(gtsummary)
+library(emmeans)
+
+data("WeightLoss")
+
+WeightLoss <- WeightLoss |>
+    filter(group!="DietEx") |>  # Keep Control and Diet groups 
+    mutate(group =factor(group),  # Group as factor  
+    subject = factor(row_number())) |> # Create identifier as factor
+    dplyr::select(-c(se1,se2,se3)) # Discard self esteem
+
+WeightLoss_long <- WeightLoss |>
+  pivot_longer(
+    cols = starts_with("wl"),  # Select weight columns
+    names_to = "Time",             # New column for time points
+    values_to = "Weight"           # New column for weight values
+  ) |>
+  mutate(Time = factor(gsub("wl", "", Time)))  # Time as factor
+
+
+```
+
+
+## WeightLoss: data 
+
+
+```{r , warning=F,echo=TRUE, eval=TRUE}
+
+WeightLoss_long |> 
+  dplyr::select(-subject) |>
+  tbl_strata(
+    strata = group,  .tbl_fun =  ~ .x |>
+        tbl_summary(by = Time, 
+        missing = "no",
+        type = Weight ~ "continuous2", 
+        statistic=all_continuous()~c("{mean} ({sd})",
+        "{median} ({p25}, {p75})"),
+        digits = all_continuous() ~ 2,
+        label = list(Weight = "Diff in Kg")) )
+            
+
+```
+
+
+## WeightLoss: data 
+
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+
+# Plot
+ggplot(WeightLoss_long, aes(x = Time, y = Weight , color = group)) +
+  geom_point(size = 4, alpha = 0.3) +
+  geom_boxplot(aes(x = Time, group = interaction(Time, group)), width = 0.4, alpha = 0.5) +
+  facet_wrap(~group) + 
+  labs(x = "Time", y = "Diff in Kg") +
+  theme_minimal() 
+
+```
+
+
+## WeightLoss: normality
+
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+#QQplot
+ggplot(WeightLoss_long, aes(sample = Weight)) +
+  geom_qq() +
+  geom_qq_line() +
+  facet_wrap(~Time*group) +  
+  labs(title = "Q-Q Plots for Each Group",
+       x = "Theoretical Quantiles",
+       y = "Sample Quantiles") +
+  theme_minimal()
+
+
+
+```
+
+
+## WeightLoss: anova
+
+
+```{r , warning=F,echo=TRUE, eval=T}
+
+# ANOVA: dependent ~ independent
+model_anova_rm <- aov(Weight ~ Time + group + Error(subject/Time), data = WeightLoss_long)  
+
+# Arrange results
+results_anova_rm <- broom::tidy(model_anova_rm)
+results_anova_rm$term<-c("Group","Residuals","Time","Residual")
+names(results_anova_rm)<-c("Stratum","Term","df","SS","MSQ","F","P-value")
+
+
+# Tabulate results
+results_anova_rm |>
+  gt::gt() |>
+  gt::fmt_number(decimals = 3) |>
+  gt::tab_header(title = "Weigth: repeated measure Anova") 
+
+```
+
+
+## WeightLoss: homocedasticity
+
+**Mauchly's Test for Sphericity**
+
+
+```{r , warning=F,echo=TRUE, eval=T}
+library(ez)
+
+anova_test <- ezANOVA(  
+  data = WeightLoss_long,
+  dv = Weight,      # Dependent variable
+  wid = subject,    # Repeated measure (subject)
+  within = Time,    # Within-subject factor
+  between = group,  # Between-subject factor
+  detailed = TRUE
+)
+
+anova_test[2:3]
+
+```
+
+GG: Greenhouse-Geisser epsilon; HFe: Huynh-Feldt epsilon.
+
+
+## WeightLoss: marginal means
+
+
+```{r , warning=F,echo=TRUE, eval=T}
+
+emm_results <-emmeans(model_anova_rm, ~ Time | group)
+
+pairs(emm_results, adjust = "tukey")
+
+```
+
+
+## WeightLoss: marginal means
+
+
+```{r , warning=F,echo=TRUE, eval=T}
+
+library(afex)
+
+model_afex <- aov_car(Weight ~ Time + group + Error(subject/Time), data = WeightLoss_long)
+
+emm_results <-emmeans(model_afex, ~ Time | group)
+
+pairs(emm_results, adjust = "tukey")
+
+```
+
+
+## WeightLoss: marginal means
+
+```{r , warning=F,echo=TRUE, eval=T}
+
+library(afex) # Properly accounts for repeated measures
+
+model_afex <- aov_car(Weight ~ Time + group + Error(subject/Time), data = WeightLoss_long)
+
+emm_results <-emmeans(model_afex, ~ group | Time)
+
+pairs(emm_results, adjust = "tukey")
+
+```
+
+
+## WeightLoss: marginal means
+
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+
+# Plot estimated marginal means with confidence intervals
+
+as.data.frame(emm_results) |> 
+ggplot(aes(x = Time, y = emmean, color = group, group = group)) +
+  geom_point(size = 3) +
+  geom_line() +
+  geom_errorbar(aes(ymin = emmean - SE, ymax = emmean + SE), width = 0.2) +
+  labs(x = "Time", y = "Estimated Mean Weight") +
+  theme_minimal() 
+
+
+```
+
+
+## WeightLoss: anova + interaction
+
+
+```{r , warning=F,echo=TRUE, eval=FALSE}
+
+# ANOVA: dependent ~ independent
+model_anova_rm <- aov(Weight ~ Time * group + Error(subject/Time), data = WeightLoss_long)  
+
+# Arrange results
+results_anova_rm <- broom::tidy(model_anova_rm)
+results_anova_rm$term<-c("Group","Residuals","Time","Time:Group","Residual")
+names(results_anova_rm)<-c("Stratum","Term","df","SS","MSQ","F","P-value")
+
+
+# Tabulate results
+results_anova_rm |>
+  gt::gt() |>
+  gt::fmt_number(decimals = 3) |>
+  gt::tab_header(title = "Weigth: repeated measure Anova") 
+
+```
+
+
+## Final messages
+
+- ANOVA is a powerful tool for analyzing experimental designs.
+
+- The assumption of heterogeneity is key.
+
+- Normality? Not so much...
+
+- Post hoc analysis: handle with care.
+
+- Surprise: ANOVA is a linear model!  
+
+
+
+
