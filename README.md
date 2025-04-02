@@ -1,3 +1,3 @@
 ## Materials
 
-Updated 27th March 2025. It contains only materials (slides, code and exercise) belonging to the first, second, third and fourth session.
+Updated 2nd April 2025. It contains the complete materials (slides, code, and exercises) of the course.
