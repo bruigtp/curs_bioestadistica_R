@@ -1,0 +1,317 @@
+---
+title: "GENERALIZED LINEAR MODELS"
+subtitle: "Applied Biostatistics Course with R"
+author: "Biostatistics Support and Research Unit, IGTP"
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    code-overflow: wrap
+execute: 
+  echo: true
+  eval: false
+editor_options: 
+  chunk_output_type: console
+---
+
+# Simple linear regression model
+
+```{r eval=TRUE, echo=FALSE, message=TRUE, warning=TRUE}
+#install.packages("compareGroups")
+library(compareGroups)
+```
+
+
+```{r, eval=TRUE}
+data(regicor) #?regicor
+```
+
+
+
+## Example dataset: REGICOR study
+
+```{r eval=TRUE, comment=NA}
+library(gt)
+regicor |>
+  head(3) |>
+  gt()
+```
+
+## Simple linear regression
+
+```{r eval=TRUE}
+library(ggplot2)
+ggplot(regicor, aes(x=age, y=sbp))+
+  geom_point() +
+  labs(x = "Age", 
+       y = "Systolic blood pressure")+
+  theme_bw()
+```
+
+
+## Correlation
+
+```{r eval=TRUE}
+cor.test(regicor$sbp, regicor$age)
+```
+
+```{r eval=TRUE}
+#install.packages("PerformanceAnalytics)
+library("PerformanceAnalytics")
+library(dplyr)
+dat <- regicor |>
+  select(age,sbp,weight,bmi)
+chart.Correlation(dat, histogram=TRUE)
+```
+
+## Simple linear regression
+
+```{r eval=TRUE}
+library(ggplot2)
+ggplot(regicor, aes(x=age, y=sbp)) +
+  geom_point() +
+  geom_smooth(method='lm', formula= y~x) +
+  labs(x = "Age", y = "Systolic blood pressure")+
+  theme_bw()
+```
+
+```{r eval=TRUE}
+m1 <- lm(sbp ~ age, data=regicor)
+summary(m1)
+```
+
+```{r eval=TRUE}
+library(gtsummary)
+m1 |> 
+  tbl_regression(intercept=TRUE)
+```
+
+## Goodness of fit
+
+```{r eval=TRUE}
+m1 |> 
+  tbl_regression(intercept=TRUE) |> 
+  add_glance_table(include = r.squared)
+```
+
+## Model diagnostics
+
+```{r eval=FALSE}
+par(mfrow=c(2,2)) # Change the panel layout to 2 x 2
+plot(m1)
+```
+
+```{r eval=TRUE}
+plot(m1,2)
+plot(m1,1)
+plot(m1,3)
+plot(m1,4)
+```
+
+## Centering the variables
+
+```{r eval=TRUE}
+regicor <- regicor |>
+        mutate(age_cent= age-mean(age))
+m1_cent <- lm(sbp ~ age_cent, data=regicor)
+m1_cent |> 
+  tbl_regression(intercept=TRUE,
+                label= list(age_cent ~"Age (centered)"))
+```
+
+# Multiple linear regression model
+
+## Multiple linear regression model
+
+```{r eval=TRUE}
+m2 <- lm(sbp ~ age+sex, data=regicor)
+m2 |> 
+  tbl_regression(intercept=TRUE)
+```
+
+## Goodness of fit
+
+```{r eval=TRUE}
+m2 |> 
+  tbl_regression(intercept=TRUE)|> 
+  add_glance_table(include = c(r.squared, adj.r.squared))
+```
+
+## Predictions
+
+```{r eval=TRUE}
+library(dplyr)
+regicor2 <- regicor |> 
+  filter(!is.na(sbp) & !is.na(age) & !is.na(sex))  #we can't predict with missing data
+regicor2 <- regicor2 |>
+  mutate(pred = predict(m2,  type="response", data=regicor2)) |> #store predictions
+  select(id,age,sex,pred) #select variables to visualize predictions 
+head(regicor2,4)
+```
+
+```{r eval=TRUE}
+#prediction
+newdata <- data.frame(age=70, sex="Male") #define new data
+newdata |>
+  mutate(pred = predict(m2,  type="response", newdata=newdata))
+```
+
+```{r eval=TRUE}
+newdata2 <- data.frame(age=70, sex=c("Male", "Female")) #define new data
+newdata2 |>
+  mutate(pred = predict(m2,  type="response", newdata=newdata2))
+```
+
+
+## Comparison of nested linear models
+
+```{r eval=TRUE}
+anova(m1, m2)
+```
+
+## Comparison of linear models
+
+```{r eval=TRUE}
+AIC(m1)
+AIC(m2)
+```
+
+```{r eval=TRUE}
+#install.packages("lmtest")
+library(lmtest)
+lrtest(m1,m2)
+```
+
+## Other features of tbl_regression()
+
+```{r eval=TRUE}
+m2 |> 
+  tbl_regression(intercept=TRUE) |>
+  add_glance_table(
+    include = c(nobs, AIC, logLik, r.squared, adj.r.squared))
+```
+
+
+```{r eval=TRUE}
+t1 <- m1 |> 
+  tbl_regression(intercept=TRUE)
+t2 <- m2 |> 
+  tbl_regression(intercept=TRUE)
+
+tbl_merge(
+  list(t1, t2),
+  tab_spanner = c("**Model with sbp**", "**Model with sbp and sex**"))
+```
+
+# Logistic regression models
+
+## Logistic model (quantitative variable)
+
+```{r eval=TRUE}
+#filter for patients without the outcome missing
+regicor <- regicor |> 
+  filter(!is.na(death))
+m1 <- glm(death ~ bmi, data=regicor, family=binomial)
+summary(m1)
+```
+
+```{r eval=TRUE}
+m1 |> 
+  tbl_regression(exp = TRUE)
+```
+
+## Predictions
+
+```{r eval=TRUE}
+regicor2 <- regicor |>
+  filter(!is.na(bmi))
+regicor2 <- regicor2 |>
+  mutate(pred = predict(m1,  type="response", data=regicor2)) |>
+  select(id,bmi,death,pred)
+head(regicor2)
+```
+
+## Logistic model (qualitative variable)
+
+```{r eval=TRUE}
+levels(regicor$smoker)
+
+regicor$smoker <- factor(regicor$smoker, 
+                         levels=c("Never smoker","Former >= 1y",
+                                  "Current or former < 1y"),
+                         labels=c("Never smoker","Former >= 1y",
+                                  "Current or former < 1y"))
+levels(regicor$smoker)
+```
+
+```{r eval=TRUE}
+m2 <- glm(death ~ smoker, data=regicor, family=binomial)
+summary(m2)
+m2 |> 
+  tbl_regression(exp = TRUE)
+```
+
+## Logistic model (qualitative and quantitative variable)
+
+```{r eval=TRUE}
+m3 <- glm(death ~ smoker + bmi, data=regicor, family=binomial)
+m3 |> 
+  tbl_regression(exp = TRUE)
+```
+
+## Model comparison
+
+```{r eval=TRUE}
+#| error: true 
+lrtest(m2, m3)
+```
+
+```{r eval=TRUE}
+regicor3 <- regicor |>
+  filter(!is.na(smoker) & !is.na(bmi))
+m2_v2 <- glm(death ~ smoker, data=regicor3, family=binomial)
+m3_v2 <- glm(death ~ smoker + bmi, data=regicor3, family=binomial)
+
+lrtest(m2_v2, m3_v2)
+```
+
+## Predictions
+
+```{r eval=TRUE}
+regicor3 <- regicor3 |>
+  mutate(pred = predict(m3,  type="response", data=regicor3)) |>
+  select(id,bmi,death,pred, smoker)
+head(regicor3)
+```
+
+```{r eval=TRUE}
+ggplot(regicor3, aes(x = bmi, y = pred, color = smoker)) +
+  geom_smooth()
+```
+
+```{r eval=TRUE}
+ggplot(regicor3, aes(x = bmi, y = pred, color = smoker)) +
+  geom_smooth(se = FALSE) + 
+  labs(x = "BMI", y = "Predicted probability of death",
+        color = "Smoking status") +  # Change legend title and axis labels
+  theme_bw() +
+  theme(legend.position = "top")  # Move legend to the top
+```
+
+## Predictive accuracy
+
+```{r eval=TRUE}
+library(pROC)
+gx <- roc(death ~ pred, data = regicor3, ci=T)
+gx
+```
+
+```{r eval=TRUE}
+plot(gx, main="ROC curve and AUC")
+```
+
+```{r eval=TRUE}
+plot(gx, main="ROC curve and AUC")
+text(0.4, 0.1, paste0("AUC:", round(auc(gx), 2), 
+                      " [",round(gx$ci[1],2), ", ",round(gx$ci[2],2),"]" ))
+```

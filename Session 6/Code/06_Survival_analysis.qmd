@@ -1,0 +1,176 @@
+---
+title: "SURVIVAL ANALYSIS"
+subtitle: "Applied Biostatistics Course with R"
+author: "Biostatistics Support and Research Unit, IGTP"
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    code-overflow: wrap
+execute: 
+  echo: true
+  eval: false
+editor_options: 
+  chunk_output_type: console
+---
+
+## Example dataset: Advanced lung cancer
+
+```{r eval=TRUE, echo=FALSE, message=TRUE, warning=TRUE}
+#install.packages("survival")
+library(survival)
+```
+
+```{r}
+#lung
+head(lung,3)
+```
+
+## Example dataset
+
+```{r}
+library(dplyr)
+lung <- 
+  lung |> 
+  mutate(
+    status = case_when(
+      status == 1 ~ 0,
+      status == 2 ~ 1,
+      .default = status
+    )
+  )
+```
+
+
+## Survival function
+
+```{r}
+surv_obj <- Surv(time = lung$time, event = lung$status)  # creates a survival object
+head(surv_obj, 10)   # prints first 10 values   
+```
+
+
+## Kaplan-Meier method
+
+```{r eval=TRUE}
+km <- survfit(Surv(time = time, event = status) ~ 1, data = lung)  
+```
+
+```{r eval=TRUE}
+#install.packages("survminer")
+library(survminer)
+ggsurvplot(km) #?ggsurvplot
+```
+
+```{r eval=TRUE}
+ggsurvplot(km, xlab = "Days", legend = "none", censor=FALSE, conf.int=FALSE, risk.table=TRUE)
+```
+
+```{r eval=TRUE}
+summary(km, time = c(365, 730))     # survival estimates at 1 and 2 years
+```
+
+```{r eval=TRUE}
+km
+```
+
+```{r eval=TRUE}
+quantile(km)
+```
+
+# Comparing survival curves
+
+## Log-rank test in R
+
+```{r eval=TRUE}
+library(dplyr)
+# define factor for sex 
+lung <- lung |>
+   mutate(sex = factor(sex, levels=1:2, labels = c("male", "female")))
+# specify formula
+survdiff(Surv(time, status) ~ sex, data = lung)                            
+```
+
+## Comparing survival curves in R
+
+```{r eval=TRUE}
+ggsurvplot(survfit(Surv(time, status) ~ sex, data = lung),xlab = "Days",censor=FALSE, conf.int=FALSE, risk.table=TRUE, pval=TRUE, pval.method=TRUE)
+```
+
+# Cox regression models
+
+## Cox regression models in R (qualitative variable)
+
+```{r eval=TRUE}
+m1 <- coxph(Surv(time, status) ~ sex, data = lung)
+m1
+```
+
+```{r eval=TRUE}
+library(gtsummary)
+coxph(Surv(time, status) ~ sex, data = lung) |> 
+  tbl_regression(exp = TRUE)
+```
+
+## Cox regression models in R (quantitative variable)
+
+```{r eval=TRUE}
+coxph(Surv(time, status) ~ age, data = lung) |> 
+  tbl_regression(exp = TRUE)
+```
+
+## Cox regression models in R (more than one variable)
+
+```{r eval=TRUE}
+coxph(Surv(time, status) ~ age + sex + ph.ecog, data = lung) |> 
+  tbl_regression(exp = TRUE)
+```
+
+## Model validation
+
+## Model validation: Proportional hazards test
+
+```{r eval=TRUE}
+m2 <- coxph(Surv(time, status) ~ age + sex + ph.ecog, data = lung)
+test.ph <- cox.zph(m2)
+test.ph
+```
+
+```{r eval=TRUE}
+m2 <- coxph(Surv(time, status) ~ age + sex + ph.ecog, data = lung)
+test.ph <- cox.zph(m2)
+test.ph
+```
+
+## Model validation: Graphs of Schoenfeld residual
+
+```{r}
+ggcoxzph(test.ph)
+```
+
+## Model validation: Graphs of Schoenfeld residual
+
+```{r eval=TRUE}
+ggcoxzph(test.ph)[1]
+ggcoxzph(test.ph)[2]
+ggcoxzph(test.ph)[3]
+```
+
+## Model validation: Log-log plots
+
+```{r eval=TRUE}
+km2 <- survfit(Surv(time, status) ~ sex, data = lung)
+ggsurvplot(km2, fun = "cloglog")
+```
+
+## Non-proportional hazards
+
+```{r eval=TRUE}
+m3 <- coxph(Surv(time, status) ~ sex + meal.cal, data = lung)
+test.ph <- cox.zph(m3)
+test.ph
+```
+
+```{r eval=TRUE}
+ggcoxzph(test.ph)[2]
+```
